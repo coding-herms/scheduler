@@ -9,7 +9,7 @@ description: >-
   Load this before operating the scheduler or writing any integration
   against http://127.0.0.1:9090. Updated from the 2026-08-25 dogfood run
   (docs/dogfood/2026-08-25-integration.md); supersedes the 08-15 version.
-version: 1.2.0
+version: 1.3.0
 category: software-development
 ---
 
@@ -21,6 +21,11 @@ MCP JSON-RPC on `/mcp`, htmx dashboard at `/`. Live DB:
 `~/.hermes/coding-hermes/scheduler.db` (daemon runs via systemd user unit
 `coding-hermes-scheduler.service`, `-config /home/kara/.hermes/fleet.toml`,
 `--auto-disable-failure-rate 0.9`).
+
+v1.3.0 (2026-09-09 dogfood run): GAP-101 resume-wedge re-proven at HEAD
+5d0ab6f; sim-setup boot-race flake documented; --simulate scratch-daemon
+workflow verified; prod spawn counters (2415 exec / 66 http) contradict the
+no-exec-fallback default — see docs/dogfood/2026-09-09-integration.md.
 
 ## Golden rules (verified 2026-08-25)
 
@@ -128,6 +133,18 @@ REST `POST /api/v1/projects` also works. `fleet_ticks` output is PascalCase
 
 ## Pitfalls
 
+- **RESUME IS NOT IDEMPOTENT (GAP-101, re-proven 2026-09-09):** a redundant
+  `POST /api/v1/resume` on an UNPAUSED loop wedges evaluation — log shows
+  `LOOP: paused`, ticks stop, `paused` stays null in status. Never blind-fire
+  resume in deploy/automation scripts; only resume after a confirmed pause.
+- **`--sim-setup` flakes ~1/7 on a fresh DB** (boot race, FK constraint at
+  fixture wipe, main.go:328) — if it FATALs, rerun on a clean db path; it's
+  not corruption (DOGFOOD-021).
+- **Scratch-test safely:** `--simulate` on a FREE port (9091 is squatted by
+  an unrelated service — `ss -tlnp` first) + scratch DB + `cooldown_s:1`
+  projects → real tick lifecycle in seconds without touching prod.
+- `go test -short -p 1 ./...` = 38s; `--test-verify 3` = the L3 harness
+  ("✅ SCHEDULER VERIFIED", 6 checks).
 - `.coding-hermes/tasks.md` is dead (`.bak`); the board is
   `.coding-hermes/board/tasks.jsonl`. The outer dir pointer file
   (`/home/kara/coding-hermes-scheduler/.coding-hermes/tasks.md`) is

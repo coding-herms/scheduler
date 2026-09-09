@@ -110,3 +110,35 @@ board.db.
 
 **Foreman:** Cooldown was 21600s (≥14400) → woken to 900s via API PUT after
 task commit (Enabled stayed true).
+
+## 2026-09-09 — 🟡 PROMISING-BUT-ROUGH
+
+**Promise:** single Go binary = dynamic priority-weighted fleet scheduler
+spawning foremen via gateway HTTP; REST + MCP + dashboard; safe degradation.
+**Reality:** core promise holds in production (178 projects, 61h uptime,
+v1.1.1-58-g611828a). Full operator workflow verified on a --simulate scratch
+daemon; --sim-setup harness + --test-verify 3 pass. Two reliability edges:
+SCHED-GAP-101 (redundant resume wedges eval loop) RE-PROVEN at HEAD 5d0ab6f
+(code unchanged since c8fcb13 — fix never landed); --sim-setup boot FATAL
+~1/7 fresh DBs (FK race, retry hides it).
+
+**Time-to-first-success:** ~4 min (build + health probe; no stalls this run).
+
+**Top 3 findings (task IDs):**
+1. **DOGFOOD-020 (P1)** — GAP-101 resume-wedge re-proven at HEAD; prod runs
+   the affected code path; deployer resume step is the trigger.
+2. **DOGFOOD-021 (P2)** — --sim-setup intermittent FK FATAL on fresh DB
+   (boot race at fixture wipe; ~1/7, retry-succeeds).
+3. **DOGFOOD-022 (P3)** — spawn-path counters (2415 exec / 66 http) contradict
+   --no-exec-fallback default + README HTTP-first claim.
+   (DOGFOOD-023: SKIPPED-install-bunker — las-bunker-03 unreachable.)
+
+**Artifacts left:** docs/dogfood/2026-09-09-integration.md (new),
+docs/dogfood/diagnostics.md (appended), skills/scheduler-usage/SKILL.md
+(v1.3.0), board rows DOGFOOD-020..023 appended to
+.coding-hermes/board/tasks.jsonl. Tests: go test -short 38s PASS,
+--test-verify 3 ✅ SCHEDULER VERIFIED.
+
+**Foreman:** coding-hermes-scheduler-pm Cooldown 86400s (≥14400) → PUT
+CooldownS=900 + DecayRate=1.0 via API after task commit (Enabled stayed true).
+Main coding-hermes-scheduler row already at 3600s — untouched.
